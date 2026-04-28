@@ -1,0 +1,367 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager - Trust Med System</title>
+    <style>
+        :root { --primary: #1565c0; --bg: #f0f4f8; --card: #fff; --text: #333; --danger: #e53935; --success: #43a047; --warning: #fbc02d; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; padding-bottom: 70px; -webkit-touch-callout: none; overflow-x: hidden; }
+        h2, h3 { color: var(--primary); margin-top: 0; }
+        .container { padding: 15px; }
+        .card { background: var(--card); padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white; background: var(--primary); }
+        .camera-btn { background: #555; color: white; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .gallery-btn { background: #888; color: white; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .tab-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; display: flex; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 100; }
+        .tab-btn { flex: 1; background: none; color: #666; padding: 15px 0; margin: 0; border-radius: 0; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tab-btn.active { color: var(--primary); border-top: 3px solid var(--primary); font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stat-box { background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 10px; border: 1px solid #bbdefb; }
+        .img-container { display: flex; gap: 10px; overflow-x: auto; margin-top: 10px; padding-bottom: 5px;}
+        .img-preview { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 2px solid var(--primary); flex-shrink: 0;}
+        .status-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+        .status-table th, .status-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        .status-table th { background: #f4f4f4; color: #555; }
+        #stock-alert { background: #fff3cd; color: #856404; padding: 8px; border-radius: 6px; font-size: 13px; font-weight: bold; display: none; margin-top: 8px; }
+
+        /* Swipe to Action Styles */
+        .swipe-container { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .swipe-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; z-index: 1; }
+        .swipe-actions button { border: none; color: white; padding: 0 20px; font-weight: bold; height: 100%; margin: 0; border-radius: 0; cursor: pointer; }
+        .btn-edit { background: var(--warning); color: #000 !important; }
+        .btn-del { background: var(--danger); }
+        .swipe-content { background: white; padding: 15px; position: relative; z-index: 2; transition: transform 0.3s ease; width: 100%; box-sizing: border-box; }
+        .swipe-content.swiped { transform: translateX(-160px); }
+    </style>
+</head>
+<body>
+
+    <datalist id="patientList"></datalist>
+    <datalist id="medicineList"></datalist>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tab-dash')">📝<br>Requests</button>
+        <button class="tab-btn" onclick="switchTab('tab-search')">🔍<br>Reorder</button>
+        <button class="tab-btn" onclick="switchTab('tab-finance')">📊<br>Finance</button>
+        <button class="tab-btn" onclick="switchTab('tab-settings')">⚙️<br>Settings</button>
+    </div>
+
+    <div class="container">
+        <div id="tab-dash" class="tab-content active">
+            <div class="card" style="background: var(--primary); color: white;">
+                <h3 style="color: white; margin:0;">Active Cash with Assistants</h3>
+                <h2 id="cash-display" style="margin: 5px 0; font-size: 28px;">₹0</h2>
+            </div>
+
+            <div class="card" id="form-card">
+                <h3 id="form-title">Create New Request</h3>
+                <input type="hidden" id="editReqId">
+                <input type="text" id="personName" list="patientList" placeholder="Person's Name" oninput="updateMedicineList()" required>
+                <input type="text" id="medicineName" list="medicineList" placeholder="Medicine Name" oninput="showStockAlert()" required>
+                <div id="stock-alert"></div>
+                
+                <select id="shopCategory"></select>
+                <div class="grid-2">
+                    <input type="number" id="qtyNeeded" placeholder="Qty Needed" required>
+                    <input type="number" id="daysNeeded" placeholder="For How Many Days?" required>
+                </div>
+                
+                <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                    <label style="font-weight: bold; font-size: 14px;">Prescriptions</label>
+                    <div class="grid-2">
+                        <button class="camera-btn" onclick="document.getElementById('rxCam').click()">📷 Camera</button>
+                        <button class="gallery-btn" onclick="document.getElementById('rxFile').click()">📁 Gallery</button>
+                    </div>
+                    <input type="file" id="rxCam" accept="image/*" capture="environment" multiple style="display:none;" onchange="processImages(this, 'rxContainer', rxImages)">
+                    <input type="file" id="rxFile" accept="image/*" multiple style="display:none;" onchange="processImages(this, 'rxContainer', rxImages)">
+                    <div id="rxContainer" class="img-container"></div>
+                </div>
+
+                <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                    <label style="font-weight: bold; font-size: 14px;">Medicines</label>
+                    <div class="grid-2">
+                        <button class="camera-btn" onclick="document.getElementById('medCam').click()">📷 Camera</button>
+                        <button class="gallery-btn" onclick="document.getElementById('medFile').click()">📁 Gallery</button>
+                    </div>
+                    <input type="file" id="medCam" accept="image/*" capture="environment" multiple style="display:none;" onchange="processImages(this, 'medContainer', medImages)">
+                    <input type="file" id="medFile" accept="image/*" multiple style="display:none;" onchange="processImages(this, 'medContainer', medImages)">
+                    <div id="medContainer" class="img-container"></div>
+                </div>
+
+                <div class="grid-2">
+                    <button id="cancelBtn" style="background: #999; display: none;" onclick="cancelEdit()">Cancel Edit</button>
+                    <button id="submitBtn" onclick="saveRequest()" style="grid-column: span 2;">Send to Assistant</button>
+                </div>
+            </div>
+            
+            <div class="card" style="background: transparent; box-shadow: none; padding: 0;">
+                <h3 style="margin-bottom: 5px;">Active Status</h3>
+                <p style="font-size: 12px; color: var(--danger); margin-top: 0; margin-bottom: 10px;">Swipe left on items to Edit or Delete.</p>
+                <div id="active-list"></div>
+            </div>
+        </div>
+
+        <div id="tab-search" class="tab-content">
+            <div class="card">
+                <h3>Search & Reorder</h3>
+                <input type="text" id="searchBar" placeholder="Search Person or Medicine..." onkeyup="renderSearch()">
+                <select id="sortOption" onchange="renderSearch()">
+                    <option value="newest">Sort: Newest First</option>
+                    <option value="oldest">Sort: Oldest First</option>
+                    <option value="qtyAsc">Sort: Quantity Left (Low to High)</option>
+                </select>
+            </div>
+            <div id="search-results" style="margin-top: 15px;"></div>
+        </div>
+
+        <div id="tab-finance" class="tab-content">
+            <div class="card"><h3>Monthly Finance</h3><input type="month" id="financeMonth" onchange="renderFinance()"></div>
+            <div class="grid-2">
+                <div class="stat-box">Month Total<h2 id="month-total">₹0</h2></div>
+                <div class="stat-box">Total All Time<h2 id="all-total">₹0</h2></div>
+            </div>
+            <div class="card"><h3>Expenses Per Person</h3><div id="person-analytics"></div></div>
+        </div>
+
+        <div id="tab-settings" class="tab-content">
+            <div class="card">
+                <h3>Manage Shops</h3>
+                <div class="grid-2"><input type="text" id="newShop" placeholder="Shop Name"><button onclick="addShop()" style="margin-top: 8px;">Add</button></div>
+                <ul id="shop-list" style="font-size: 14px; padding-left: 15px;"></ul>
+            </div>
+            <button onclick="forceCleanup()" style="background: var(--danger);">Clean Old Data to Free Space</button>
+        </div>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('trustMedV9')) || { requests: [], cash: 0, shops: ['Jan Aushadhi Kendra', 'Prabha Medicals'] };
+        let rxImages = []; let medImages = [];
+        let currentSwipeItem = null; let startX = 0;
+
+        // --- Swipe Gestures ---
+        function handleTouchStart(e) { startX = e.touches[0].clientX; }
+        function handleTouchEnd(e, id) {
+            let endX = e.changedTouches[0].clientX;
+            let diff = startX - endX;
+            let el = document.getElementById('swipe-' + id);
+            if(!el) return;
+            if (diff > 50) { // Swiped Left
+                if(currentSwipeItem && currentSwipeItem !== el) currentSwipeItem.classList.remove('swiped');
+                el.classList.add('swiped'); currentSwipeItem = el;
+            } else if (diff < -50) { // Swiped Right
+                el.classList.remove('swiped'); if(currentSwipeItem === el) currentSwipeItem = null;
+            }
+        }
+        document.addEventListener('click', function(e) {
+            if (currentSwipeItem && !e.target.closest('.swipe-actions')) {
+                currentSwipeItem.classList.remove('swiped'); currentSwipeItem = null;
+            }
+        });
+
+        // --- Editing & Deleting ---
+        function deleteReq(id) {
+            if(confirm("Permanently delete this request?")) {
+                db.requests = db.requests.filter(r => r.id !== id); saveData();
+            }
+        }
+
+        function loadEditReq(id) {
+            let req = db.requests.find(r => r.id === id);
+            if(!req) return;
+            document.getElementById('editReqId').value = req.id;
+            document.getElementById('personName').value = req.person;
+            document.getElementById('medicineName').value = req.medicine;
+            document.getElementById('shopCategory').value = req.shop;
+            document.getElementById('qtyNeeded').value = req.qtyNeeded;
+            document.getElementById('daysNeeded').value = req.daysNeeded;
+            
+            rxImages = [...(req.rxImgs || [])]; medImages = [...(req.medImgs || [])];
+            renderImageThumbnails('rxContainer', rxImages); renderImageThumbnails('medContainer', medImages);
+
+            document.getElementById('form-title').innerText = "Edit Request";
+            document.getElementById('submitBtn').innerText = "Update Request";
+            document.getElementById('submitBtn').style.gridColumn = "span 1";
+            document.getElementById('cancelBtn').style.display = "block";
+            
+            if(currentSwipeItem) currentSwipeItem.classList.remove('swiped');
+            switchTab('tab-dash');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            document.getElementById('editReqId').value = '';
+            document.getElementById('personName').value = ''; document.getElementById('medicineName').value = '';
+            document.getElementById('qtyNeeded').value = ''; document.getElementById('daysNeeded').value = '';
+            rxImages = []; medImages = []; renderImageThumbnails('rxContainer', rxImages); renderImageThumbnails('medContainer', medImages);
+            document.getElementById('form-title').innerText = "Create New Request";
+            document.getElementById('submitBtn').innerText = "Send to Assistant";
+            document.getElementById('submitBtn').style.gridColumn = "span 2";
+            document.getElementById('cancelBtn').style.display = "none";
+        }
+
+        function forceCleanup() { if(confirm("Clear completed history to save space?")) { db.requests = db.requests.filter(r => r.status !== 'Bought'); saveData(); } }
+
+        function populateDatalists() {
+            let patients = [...new Set(db.requests.map(r => r.person))]; document.getElementById('patientList').innerHTML = patients.map(p => `<option value="${p}">`).join('');
+        }
+        function updateMedicineList() {
+            let person = document.getElementById('personName').value; let meds = [...new Set(db.requests.filter(r => r.person === person).map(r => r.medicine))];
+            document.getElementById('medicineList').innerHTML = meds.map(m => `<option value="${m}">`).join('');
+        }
+        function showStockAlert() {
+            let person = document.getElementById('personName').value; let med = document.getElementById('medicineName').value;
+            let alertBox = document.getElementById('stock-alert'); let pastReqs = db.requests.filter(r => r.person === person && r.medicine === med);
+            if(pastReqs.length > 0) {
+                let stock = getStockData(pastReqs[pastReqs.length - 1]); alertBox.style.display = 'block'; alertBox.innerHTML = `Stock for ${person}: <strong>${stock.qtyLeft} qty left (${stock.daysLeft} days)</strong>`;
+            } else { alertBox.style.display = 'none'; }
+        }
+
+        function getStockData(req) {
+            if (!req.history || req.history.length === 0) return { qtyLeft: 0, daysLeft: 0, totalBought: 0, lastDate: 'N/A' };
+            let totalBought = req.history.reduce((s, tx) => s + tx.qty, 0);
+            let firstDate = new Date(req.history[0].date); let daysPassed = Math.floor((new Date() - firstDate) / (1000*60*60*24));
+            let dailyUsage = req.qtyNeeded / req.daysNeeded; let qtyLeft = Math.max(0, totalBought - (daysPassed * dailyUsage));
+            return { qtyLeft: Math.round(qtyLeft), daysLeft: Math.round(dailyUsage > 0 ? qtyLeft / dailyUsage : 0), lastDate: new Date(req.history[req.history.length-1].date).toLocaleDateString(), totalBought };
+        }
+
+        function processImages(input, containerId, targetArray) {
+            if (!input.files) return;
+            Array.from(input.files).forEach(file => {
+                const r = new FileReader(); r.readAsDataURL(file);
+                r.onload = e => {
+                    const img = new Image(); img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas'); const scale = 400 / img.width; canvas.width = 400; canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        targetArray.push(canvas.toDataURL('image/jpeg', 0.6)); renderImageThumbnails(containerId, targetArray);
+                    }
+                };
+            });
+        }
+
+        function renderImageThumbnails(containerId, targetArray) {
+            let container = document.getElementById(containerId); container.innerHTML = '';
+            targetArray.forEach((b64, index) => {
+                container.innerHTML += `<img src="${b64}" class="img-preview" onclick="if(confirm('Remove photo?')){${containerId==='rxContainer'?'rxImages':'medImages'}.splice(${index},1); renderImageThumbnails('${containerId}', ${containerId==='rxContainer'?'rxImages':'medImages'});}">`;
+            });
+        }
+
+        function saveData() { localStorage.setItem('trustMedV9', JSON.stringify(db)); renderAll(); }
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active'); event.currentTarget.classList.add('active');
+        }
+
+        function addShop() { let shop = document.getElementById('newShop').value; if(shop) { db.shops.push(shop); saveData(); document.getElementById('newShop').value=''; } }
+
+        function saveRequest(cloneData = null) {
+            let editingId = document.getElementById('editReqId').value;
+            let person = document.getElementById('personName').value; let medicine = document.getElementById('medicineName').value;
+            if (!person || !medicine) return alert("Fill fields!");
+
+            if(editingId && !cloneData) {
+                let req = db.requests.find(r => r.id == editingId);
+                req.person = person; req.medicine = medicine; req.shop = document.getElementById('shopCategory').value;
+                req.qtyNeeded = parseInt(document.getElementById('qtyNeeded').value); req.daysNeeded = parseInt(document.getElementById('daysNeeded').value);
+                req.rxImgs = [...rxImages]; req.medImgs = [...medImages];
+                cancelEdit(); saveData(); alert("Request Updated!");
+            } else {
+                const req = cloneData || {
+                    id: Date.now(), person: person, medicine: medicine, shop: document.getElementById('shopCategory').value,
+                    qtyNeeded: parseInt(document.getElementById('qtyNeeded').value), daysNeeded: parseInt(document.getElementById('daysNeeded').value),
+                    rxImgs: [...rxImages], medImgs: [...medImages], status: 'Sent to Assistant', qtyBought: 0, rate: 0, history: []
+                };
+                db.requests.push(req); rxImages=[]; medImages=[]; renderImageThumbnails('rxContainer', rxImages); renderImageThumbnails('medContainer', medImages);
+                saveData(); alert("Sent to Assistant!");
+            }
+        }
+
+        function renderAll() {
+            populateDatalists();
+            document.getElementById('cash-display').innerText = `₹${db.cash.toFixed(2)}`;
+            document.getElementById('shopCategory').innerHTML = db.shops.map(s => `<option value="${s}">${s}</option>`).join('');
+            document.getElementById('shop-list').innerHTML = db.shops.map((s,i) => `<li>${s} <button onclick="db.shops.splice(${i},1); saveData();" style="width:auto;padding:2px 5px;background:red;">X</button></li>`).join('');
+            
+            let activeHtml = '';
+            db.requests.filter(r => r.status !== 'Bought').forEach(req => {
+                let stock = getStockData(req);
+                activeHtml += `
+                <div class="swipe-container">
+                    <div class="swipe-actions">
+                        <button class="btn-edit" onclick="loadEditReq(${req.id})">Edit</button>
+                        <button class="btn-del" onclick="deleteReq(${req.id})">Delete</button>
+                    </div>
+                    <div class="swipe-content" id="swipe-${req.id}" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event, ${req.id})">
+                        <strong style="font-size:18px;">${req.person} - ${req.medicine}</strong> <span class="badge">${req.status}</span>
+                        <table class="status-table">
+                            <tr><th>Target</th><td>${req.qtyNeeded}</td><th>Bought</th><td>${stock.totalBought}</td></tr>
+                            <tr><th>Days Left</th><td>${stock.daysLeft} days</td><th>Qty Left</th><td>${stock.qtyLeft}</td></tr>
+                            <tr><th>Last Buy</th><td colspan="3">${stock.lastDate !== 'N/A' ? stock.lastDate : 'Not bought yet'}</td></tr>
+                        </table>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('active-list').innerHTML = activeHtml || '<p>No pending items.</p>';
+            
+            if(!document.getElementById('financeMonth').value) {
+                let d = new Date(); document.getElementById('financeMonth').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            }
+            renderSearch(); renderFinance();
+        }
+
+        function renderSearch() {
+            let q = document.getElementById('searchBar').value.toLowerCase(); let sort = document.getElementById('sortOption').value;
+            let filtered = db.requests.filter(r => r.person.toLowerCase().includes(q) || r.medicine.toLowerCase().includes(q));
+            
+            if(sort === 'newest') filtered.sort((a,b) => b.id - a.id);
+            if(sort === 'oldest') filtered.sort((a,b) => a.id - b.id);
+            if(sort === 'qtyAsc') filtered.sort((a,b) => getStockData(a).qtyLeft - getStockData(b).qtyLeft);
+
+            let html = '';
+            filtered.forEach(req => {
+                let stock = getStockData(req);
+                html += `
+                <div class="swipe-container">
+                    <div class="swipe-actions">
+                        <button class="btn-edit" onclick="loadEditReq(${req.id})">Edit</button>
+                        <button class="btn-del" onclick="deleteReq(${req.id})">Delete</button>
+                    </div>
+                    <div class="swipe-content" id="swipe-${req.id}" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event, ${req.id})">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong>${req.medicine} (${req.person})</strong>
+                            <button onclick="saveRequest({id:Date.now(), person:'${req.person}', medicine:'${req.medicine}', shop:'${req.shop}', qtyNeeded:${req.qtyNeeded}, daysNeeded:${req.daysNeeded}, rxImgs: ${JSON.stringify(req.rxImgs || [])}, medImgs: ${JSON.stringify(req.medImgs || [])}, status:'Sent to Assistant', qtyBought:0, rate:0, history:[]})" style="padding:4px 8px; margin:0; background:#fbc02d; color:#000; font-size:12px;">🔄 Reorder</button>
+                        </div>
+                        <table class="status-table">
+                            <tr><th>Target</th><td>${req.qtyNeeded}</td><th>Bought</th><td>${stock.totalBought}</td></tr>
+                            <tr><th>Days Left</th><td style="color:var(--danger); font-weight:bold;">${stock.daysLeft}</td><th>Qty Left</th><td>${stock.qtyLeft}</td></tr>
+                            <tr><th>Last Buy</th><td colspan="3">${stock.lastDate}</td></tr>
+                        </table>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('search-results').innerHTML = html;
+        }
+
+        function renderFinance() {
+            let selectedMonth = document.getElementById('financeMonth').value; let allTotal = 0; let monthTotal = 0; let perPerson = {};
+            db.requests.forEach(req => {
+                req.history.forEach(tx => {
+                    allTotal += tx.amount; let txMonth = tx.date.substring(0, 7);
+                    if(txMonth === selectedMonth) { monthTotal += tx.amount; perPerson[req.person] = (perPerson[req.person] || 0) + tx.amount; }
+                });
+            });
+            document.getElementById('all-total').innerText = `₹${allTotal.toFixed(2)}`;
+            document.getElementById('month-total').innerText = `₹${monthTotal.toFixed(2)}`;
+            document.getElementById('person-analytics').innerHTML = Object.keys(perPerson).map(p => 
+                `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:8px 0;"><span>${p}</span> <strong>₹${perPerson[p].toFixed(2)}</strong></div>`
+            ).join('') || '<p style="color:#666; font-size:14px;">No expenses for this month.</p>';
+        }
+        renderAll();
+    </script>
+</body>
+</html>
